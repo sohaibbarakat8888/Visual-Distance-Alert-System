@@ -1,0 +1,95 @@
+#include <LiquidCrystal_I2C.h>
+
+LiquidCrystal_I2C lcd(0x27,16,2);
+
+const int trig = 11;
+const int echo = 10;
+float time_echo;
+float distance;
+
+void setup(){
+  
+  lcd.init();
+  lcd.backlight();
+ 
+  for(int numled = 2 ; numled <= 8 ; numled++ ){
+    pinMode(numled, OUTPUT);
+  }
+pinMode(trig, OUTPUT);
+  pinMode(echo, INPUT);
+}
+
+void loop(){
+digitalWrite(trig, LOW);
+delayMicroseconds(2);
+digitalWrite(trig, HIGH);
+delayMicroseconds(10);
+digitalWrite(trig, LOW);
+  
+  time_echo = pulseIn(echo, HIGH);
+
+  distance = (time_echo * 0.0343 ) / 2; //speed = 0.0343
+
+  int delaytime = 1000;
+ 
+  lcd.setCursor(0,0);
+  lcd.print("Dist: ");
+  lcd.print(distance);
+  lcd.setCursor(12,0);
+  lcd.print("CM");
+  
+  int numbars = map(distance,5,50,16,0);
+   lcd.setCursor(0,1);
+  if (distance > 50){
+  lcd.print("You are safe   ");
+  }
+  else{
+  for(int i = 0 ; i < 16 ; i++){
+    if (numbars > i){
+      lcd.write(255);
+    }
+    else{
+    lcd.print(" ");
+    }
+  }
+}
+  
+  if(distance <= 50){
+    digitalWrite(2,HIGH);
+    
+  if(distance <= 40){
+    digitalWrite(3,HIGH);
+    delaytime-=50;
+  }
+  if(distance <= 30){
+    digitalWrite(4,HIGH);
+      delaytime-=75;
+  }
+  if(distance <= 25){
+    digitalWrite(5,HIGH);
+      delaytime-=75;
+  }
+  if(distance <= 20){
+    digitalWrite(6,HIGH);
+      delaytime-=75;
+  }
+  if(distance <= 10){
+    digitalWrite(7,HIGH);
+          delaytime-=125;
+  }
+  if(distance <= 5){
+    digitalWrite(8,HIGH);
+          delaytime-=200;
+  }
+    delay(delaytime);
+      for(int i = 2 ; i <= 8 ;i++){
+digitalWrite(i,LOW);
+  }
+  }
+   else{
+   for(int i = 2 ; i <= 8 ;i++){
+digitalWrite(i,LOW);
+     delay(delaytime);
+}
+}  
+}
