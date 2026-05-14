@@ -1,95 +1,98 @@
 #include <LiquidCrystal_I2C.h>
 
-LiquidCrystal_I2C lcd(0x27,16,2);
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
+// تعريف الدبابيس
 const int trig = 11;
 const int echo = 10;
+const int buzzer = 9;
+
 float time_echo;
 float distance;
 
-void setup(){
-  
+// متغيرات الـ millis
+unsigned long prevBlinkTime = 0;   
+unsigned long prevSensorTime = 0;  
+int ledState = LOW;                
+
+void setup() {
   lcd.init();
   lcd.backlight();
- 
-  for(int numled = 2 ; numled <= 8 ; numled++ ){
-    pinMode(numled, OUTPUT);
+  
+  for (int numleds = 2; numleds <= 8; numleds++) {
+    pinMode(numleds, OUTPUT);
   }
-pinMode(trig, OUTPUT);
+  pinMode(buzzer, OUTPUT);
+  pinMode(trig, OUTPUT);
   pinMode(echo, INPUT);
 }
 
-void loop(){
-digitalWrite(trig, LOW);
-delayMicroseconds(2);
-digitalWrite(trig, HIGH);
-delayMicroseconds(10);
-digitalWrite(trig, LOW);
-  
-  time_echo = pulseIn(echo, HIGH);
+void loop() {
+  unsigned long currentTime = millis();
 
-  distance = (time_echo * 0.0343 ) / 2; //speed = 0.0343
-
-  int delaytime = 1000;
- 
-  lcd.setCursor(0,0);
-  lcd.print("Dist: ");
-  lcd.print(distance);
-  lcd.setCursor(12,0);
-  lcd.print("CM");
-  
-  int numbars = map(distance,5,50,16,0);
-   lcd.setCursor(0,1);
-  if (distance > 50){
-  lcd.print("You are safe   ");
-  }
-  else{
-  for(int i = 0 ; i < 16 ; i++){
-    if (numbars > i){
-      lcd.write(255);
-    }
-    else{
-    lcd.print(" ");
-    }
-  }
-}
-  
-  if(distance <= 50){
-    digitalWrite(2,HIGH);
+  // 1. قراءة الحساس وتحديث الشاشة كل 50 مللي ثانية (سرعة استجابة عالية)
+  if (currentTime - prevSensorTime >= 50) {
+    prevSensorTime = currentTime;
     
-  if(distance <= 40){
-    digitalWrite(3,HIGH);
-    delaytime-=50;
+    digitalWrite(trig, LOW);
+    delayMicroseconds(2); 
+    digitalWrite(trig, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trig, LOW);
+    
+    time_echo = pulseIn(echo, HIGH);
+    distance = (time_echo * 0.0343) / 2;
+
+    lcd.setCursor(0, 0);
+    lcd.print("Dist: ");
+    lcd.print(distance);
+    lcd.print(" CM   ");
+
+    if (distance > 50) {
+      lcd.setCursor(0, 1);
+      lcd.print("You are safe    ");
+      for (int i = 2; i <= 9; i++) digitalWrite(i, LOW);
+    } else {
+      int numbars = map(distance, 5, 50, 16, 0);
+      lcd.setCursor(0, 1);
+      for (int i = 0; i < 16; i++) {
+        if (numbars > i) lcd.write(255);
+        else lcd.print(" ");
+      }
+    }
   }
-  if(distance <= 30){
-    digitalWrite(4,HIGH);
-      delaytime-=75;
+
+  // 2. منطق الرعشة التراكمية والسريعة
+  if (distance <= 50) {
+    int distleds[] = {50, 40, 35, 30, 25, 15, 10};
+    // السرعات: بتبدأ بـ 800ms (بطيء) وبتوصل لـ 50ms (رعشة سريعة جداً)
+    int delays[] = {800, 600, 400, 250, 150, 80, 50}; 
+    int currentInterval = 800;
+
+    for (int i = 0; i < 7; i++) {
+      if (distance <= distleds[i]) {
+        currentInterval = delays[i];
+      }
+    }
+
+    if (currentTime - prevBlinkTime >= currentInterval) {
+      prevBlinkTime = currentTime;
+      ledState = (ledState == LOW) ? HIGH : LOW;
+
+      if (ledState == HIGH) {
+        // تشغيل كل الليدات المناسبة للمسافة الحالية (تراكمي)
+        for (int i = 0; i < 7; i++) {
+          if (distance <= distleds[i]) {
+            digitalWrite(i + 2, HIGH); 
+            if (i >= 5) digitalWrite(buzzer, HIGH); 
+          }
+        }
+      } else {
+        // إطفاء الكل لعمل تأثير الرعشة
+        for (int i = 2; i <= 9; i++) {
+          digitalWrite(i, LOW);
+        }
+      }
+    }
   }
-  if(distance <= 25){
-    digitalWrite(5,HIGH);
-      delaytime-=75;
-  }
-  if(distance <= 20){
-    digitalWrite(6,HIGH);
-      delaytime-=75;
-  }
-  if(distance <= 10){
-    digitalWrite(7,HIGH);
-          delaytime-=125;
-  }
-  if(distance <= 5){
-    digitalWrite(8,HIGH);
-          delaytime-=200;
-  }
-    delay(delaytime);
-      for(int i = 2 ; i <= 8 ;i++){
-digitalWrite(i,LOW);
-  }
-  }
-   else{
-   for(int i = 2 ; i <= 8 ;i++){
-digitalWrite(i,LOW);
-     delay(delaytime);
-}
-}  
 }
